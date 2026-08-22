@@ -1,8 +1,11 @@
-# Production Dockerfile for Render — PHP 8.2 + Apache
+# Production Dockerfile for Render — PHP 8.2 + Apache (v2)
 FROM php:8.2-apache
 
 # Set working directory
 WORKDIR /var/www/html
+
+# Fix Apache ServerName warning
+RUN echo "ServerName localhost" >> /etc/apache2/apache2.conf
 
 # Install system dependencies + PHP extensions
 RUN apt-get update && apt-get install -y \
