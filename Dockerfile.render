@@ -77,8 +77,8 @@ php artisan migrate --force\n\
 # Link storage\n\
 php artisan storage:link || true\n\
 \n\
-# Cache config & routes (NOT view:cache — views compiled by www-data at runtime)\n\
-php artisan config:cache\n\
+# Cache routes (config cleared so runtime env vars apply properly)\n\
+php artisan config:clear\n\
 php artisan route:cache\n\
 \n\
 # Fix permissions after artisan commands run as root\n\
