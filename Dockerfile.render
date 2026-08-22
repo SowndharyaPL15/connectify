@@ -40,12 +40,19 @@ COPY --from=composer:2 /usr/bin/composer /usr/bin/composer
 # Copy application code
 COPY . .
 
+# Copy render env file as .env (since .env is in .gitignore)
+RUN cp .env.render .env
+
 # Install Laravel dependencies (production only)
 RUN composer install --no-dev --optimize-autoloader
 
 # Point Apache document root to Laravel's public directory
 RUN sed -i 's|/var/www/html|/var/www/html/public|g' \
     /etc/apache2/sites-available/000-default.conf
+
+# Enable AllowOverride for .htaccess (required for Laravel routing)
+RUN sed -i '/<Directory \/var\/www\/>/,/<\/Directory>/ s/AllowOverride None/AllowOverride All/' \
+    /etc/apache2/apache2.conf
 
 # Set correct permissions
 RUN chown -R www-data:www-data storage bootstrap/cache \
