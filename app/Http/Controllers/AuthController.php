@@ -7,7 +7,9 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Validation\Rules\Password;
+
 
 class AuthController extends Controller
 {
@@ -109,13 +111,20 @@ class AuthController extends Controller
 
     public function redirectToGoogle()
     {
-        return \Laravel\Socialite\Facades\Socialite::driver('google')->redirect();
+        return \Laravel\Socialite\Facades\Socialite::driver('google')->stateless()->redirect();
     }
 
     public function handleGoogleCallback()
     {
         try {
-            $googleUser = \Laravel\Socialite\Facades\Socialite::driver('google')->user();
+            $driver = \Laravel\Socialite\Facades\Socialite::driver('google')->stateless();
+
+            $driver->setHttpClient(new \GuzzleHttp\Client([
+                'verify' => false,
+                'timeout' => 30,
+            ]));
+
+            $googleUser = $driver->user();
             
             $user = User::where('email', $googleUser->email)
                 ->orWhere('google_id', $googleUser->id)
@@ -148,7 +157,10 @@ class AuthController extends Controller
             return redirect()->route('chat.index');
 
         } catch (\Exception $e) {
-            return redirect()->route('login')->withErrors(['email' => 'Google authentication failed.']);
+            Log::error('Google OAuth Error: ' . $e->getMessage(), [
+                'exception' => $e
+            ]);
+            return redirect()->route('login')->withErrors(['email' => 'Google authentication failed: ' . $e->getMessage()]);
         }
     }
 }
