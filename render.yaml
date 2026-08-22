@@ -1,0 +1,67 @@
+services:
+  - type: web
+    name: connectify
+    runtime: docker
+    dockerContext: .
+    dockerfilePath: Dockerfile.render
+    plan: free
+    region: singapore
+    envVars:
+      # App
+      - key: APP_NAME
+        value: Connectify
+      - key: APP_ENV
+        value: production
+      - key: APP_DEBUG
+        value: "false"
+      - key: APP_URL
+        value: https://connectify.onrender.com
+      - key: APP_KEY
+        sync: false  # Set this in Render dashboard: base64:Y5ojXxxnbhQtJp+H+nFgpOioBuvlxpRlhI8v2auhZi4=
+
+      # Database (PostgreSQL - auto-linked from Render DB)
+      - key: DB_CONNECTION
+        value: pgsql
+      - key: DATABASE_URL
+        fromDatabase:
+          name: connectify-db
+          property: connectionString
+
+      # Session / Cache
+      - key: SESSION_DRIVER
+        value: cookie
+      - key: SESSION_LIFETIME
+        value: "120"
+      - key: CACHE_DRIVER
+        value: file
+      - key: QUEUE_CONNECTION
+        value: sync
+
+      # Logging
+      - key: LOG_CHANNEL
+        value: errorlog
+      - key: LOG_LEVEL
+        value: error
+
+      # Google OAuth
+      - key: GOOGLE_CLIENT_ID
+        sync: false  # Set in Render dashboard
+      - key: GOOGLE_CLIENT_SECRET
+        sync: false  # Set in Render dashboard
+      - key: GOOGLE_REDIRECT_URL
+        value: https://connectify.onrender.com/auth/google/callback
+
+      # AI Providers
+      - key: AI_PROVIDER
+        value: groq
+      - key: GROQ_API_KEY
+        sync: false  # Set in Render dashboard
+      - key: OPENAI_API_KEY
+        sync: false  # Set in Render dashboard
+      - key: GEMINI_API_KEY
+        sync: false  # Set in Render dashboard
+
+databases:
+  - name: connectify-db
+    region: singapore
+    plan: free
