@@ -31,9 +31,14 @@ body.auth-body {
                       radial-gradient(circle at 85% 30%, rgba(139, 92, 246, 0.15) 0%, transparent 50%);
 }
 
-/* Base resets for auth context */
 .auth-body * {
     box-sizing: border-box;
+}
+
+.home-logo svg, .auth-brand-logo svg {
+    width: 28px;
+    height: 28px;
+    flex-shrink: 0;
 }
 
 /* Container for Login & Register (Split Screen) */
