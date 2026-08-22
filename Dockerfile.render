@@ -1,70 +1,76 @@
-# Production Dockerfile for Render (Combined PHP + Nginx)
-FROM php:8.2-fpm
+# Production Dockerfile for Render — PHP 8.2 + Apache
+FROM php:8.2-apache
 
-# Install system dependencies
+# Set working directory
+WORKDIR /var/www/html
+
+# Install system dependencies + PHP extensions
 RUN apt-get update && apt-get install -y \
-    git \
-    curl \
+    unzip \
+    libpq-dev \
+    libzip-dev \
     libpng-dev \
     libonig-dev \
     libxml2-dev \
-    zip \
-    unzip \
-    libzip-dev \
-    libpq-dev \
-    nginx
+    && docker-php-ext-install \
+        pdo_pgsql \
+        pgsql \
+        mbstring \
+        exif \
+        pcntl \
+        bcmath \
+        gd \
+        zip \
+    && apt-get clean \
+    && rm -rf /var/lib/apt/lists/*
 
-# Clear cache
-RUN apt-get clean && rm -rf /var/lib/apt/lists/*
+# Enable Apache mod_rewrite (required for Laravel routing)
+RUN a2enmod rewrite
 
-# Install PHP extensions
-RUN docker-php-ext-install pdo_pgsql mbstring exif pcntl bcmath gd zip
+# Allow .htaccess overrides — critical for Laravel routes to work
+RUN sed -i 's|<Directory /var/www/>|<Directory /var/www/html/>|g' /etc/apache2/apache2.conf \
+    && sed -i 's|AllowOverride None|AllowOverride All|g' /etc/apache2/apache2.conf
 
-# Get latest Composer
-COPY --from=composer:latest /usr/bin/composer /usr/bin/composer
-
-# Set working directory
-WORKDIR /var/www
+# Install Composer
+COPY --from=composer:2 /usr/bin/composer /usr/bin/composer
 
 # Copy application code
 COPY . .
 
-# Install PHP dependencies
+# Install Laravel dependencies (production only)
 RUN composer install --no-dev --optimize-autoloader
 
-# Copy Nginx configuration
-COPY docker/nginx/render.conf /etc/nginx/sites-available/default
-RUN ln -sf /etc/nginx/sites-available/default /etc/nginx/sites-enabled/default
+# Point Apache document root to Laravel's public directory
+RUN sed -i 's|/var/www/html|/var/www/html/public|g' \
+    /etc/apache2/sites-available/000-default.conf
 
-# Set permissions
-RUN chown -R www-data:www-data /var/www/storage /var/www/bootstrap/cache
+# Set correct permissions
+RUN chown -R www-data:www-data storage bootstrap/cache \
+    && chmod -R 775 storage bootstrap/cache
 
-# Create startup script
-RUN printf '#!/bin/sh\n\
-# Adjust Nginx port for Render\n\
-sed -i "s/listen 80;/listen ${PORT:-80};/g" /etc/nginx/sites-available/default\n\
+# Create startup script — runs on every container start
+RUN printf '#!/bin/bash\n\
+set -e\n\
 \n\
-# Run DB migrations\n\
+echo "==> Running Laravel setup..."\n\
+\n\
+# Run database migrations\n\
 php artisan migrate --force\n\
 \n\
 # Link storage\n\
 php artisan storage:link || true\n\
 \n\
-# Cache config & routes for performance\n\
+# Cache for performance\n\
 php artisan config:cache\n\
 php artisan route:cache\n\
 php artisan view:cache\n\
 \n\
-# Start PHP-FPM in background\n\
-php-fpm -D\n\
-\n\
-# Start Nginx in foreground\n\
-nginx -g "daemon off;"\n\
+echo "==> Starting Apache..."\n\
+exec apache2-foreground\n\
 ' > /usr/local/bin/start-app.sh
 
 RUN chmod +x /usr/local/bin/start-app.sh
 
-# Expose port (Render sets this dynamically)
 EXPOSE 80
 
 CMD ["/usr/local/bin/start-app.sh"]
