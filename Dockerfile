@@ -1,35 +1,50 @@
-# Production PHP Setup
-FROM php:8.2-fpm
+FROM php:8.2-apache
+
+WORKDIR /var/www/html
 
 # Install system dependencies
 RUN apt-get update && apt-get install -y \
     git \
-    curl \
+    unzip \
+    libpq-dev \
+    libzip-dev \
     libpng-dev \
     libonig-dev \
     libxml2-dev \
     zip \
-    unzip \
-    libzip-dev
+    && docker-php-ext-install \
+    pdo_pgsql \
+    pgsql \
+    mbstring \
+    exif \
+    pcntl \
+    bcmath \
+    gd \
+    zip \
+    && apt-get clean \
+    && rm -rf /var/lib/apt/lists/*
 
-# Clear cache
-RUN apt-get clean && rm -rf /var/lib/apt/lists/*
+# Enable Apache rewrite
+RUN a2enmod rewrite
 
-# Install PHP extensions
-RUN docker-php-ext-install pdo_mysql mbstring exif pcntl bcmath gd zip
+# Install Composer
+COPY --from=composer:2 /usr/bin/composer /usr/bin/composer
 
-# Get latest Composer
-COPY --from=composer:latest /usr/bin/composer /usr/bin/composer
-
-# Set working directory
-WORKDIR /var/www
-
-# Copy application code
+# Copy application
 COPY . .
 
-# Setup entrypoint script permissions
-RUN chmod +x docker/entrypoint.sh
+# Install Laravel dependencies
+RUN composer install --no-dev --optimize-autoloader
 
-# Expose port and start php-fpm
-EXPOSE 9000
-ENTRYPOINT ["docker/entrypoint.sh"]
+# Point Apache to Laravel public directory
+RUN sed -i 's!/var/www/html!/var/www/html/public!g' \
+    /etc/apache2/sites-available/000-default.conf
+
+# Permissions
+RUN chown -R www-data:www-data \
+    storage \
+    bootstrap/cache
+
+EXPOSE 80
+
+CMD ["apache2-foreground"]
