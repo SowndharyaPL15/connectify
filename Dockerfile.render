@@ -71,6 +71,17 @@ set -e\n\
 \n\
 echo "==> Running Laravel setup..."\n\
 \n\
+# Wait for database connection\n\
+echo "Checking database connection..."\n\
+for i in {1..20}; do\n\
+    if php artisan db:monitor --max=1 > /dev/null 2>&1 || php artisan migrate:status > /dev/null 2>&1; then\n\
+        echo "Database is ready!"\n\
+        break\n\
+    fi\n\
+    echo "Database connection not ready. Retrying in 3 seconds ($i/20)..."\n\
+    sleep 3\n\
+done\n\
+\n\
 # Run database migrations\n\
 php artisan migrate --force\n\
 \n\

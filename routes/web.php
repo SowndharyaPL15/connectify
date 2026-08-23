@@ -64,3 +64,17 @@ Route::middleware('auth')->group(function () {
     Route::post('/convert-tone',   [AIController::class, 'convertTone'])->name('ai.convert')->middleware('throttle:10,1');
     Route::post('/translate',      [AIController::class, 'translate'])->name('ai.translate')->middleware('throttle:20,1');
 });
+
+// Temporary Route to Run Migrations
+Route::get('/run-migrations', function () {
+    try {
+        echo "Running migrations...<br>";
+        $exitCode = \Illuminate\Support\Facades\Artisan::call('migrate', ['--force' => true]);
+        echo "Migration finished with exit code: $exitCode<br>";
+        echo "Migration output:<br>";
+        echo "<pre>" . \Illuminate\Support\Facades\Artisan::output() . "</pre>";
+    } catch (\Exception $e) {
+        echo "Error: " . $e->getMessage();
+    }
+});
+
