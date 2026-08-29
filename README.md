@@ -1,6 +1,6 @@
 # 💬 Connectify — Modern Messaging Platform
 
-[![Live App](https://img.shields.io/badge/Live%20Demo-Render-brightgreen?style=for-the-badge&logo=render)](https://connectify-bw2w.onrender.com)
+[![Live App](https://img.shields.io/badge/Live%20Demo-Online-brightgreen?style=for-the-badge)](https://connectify-bw2w.onrender.com)
 
 Connectify is a production-ready, real-time messaging platform inspired by WhatsApp Web. Built with **Laravel 10**, **Vanilla JS**, and **MySQL**, it features a glassmorphic UI, live interactions, Google OAuth, emoji reactions, and AI-powered chat translation. Fully containerized with Docker for isolated, seamless deployment. 
 
