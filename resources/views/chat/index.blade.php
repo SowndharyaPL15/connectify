@@ -97,7 +97,7 @@
                 <div class="chat-header-info">
                     <span class="chat-header-name">{{ $displayName }}</span>
                     <span class="chat-header-status" id="chatStatus">
-                        {{ $conversation->is_group ? 'Group Chat' : 'Online' }}
+                        {{ $conversation->is_group ? 'Group Chat' : ($otherUser ? $otherUser->last_seen_text : 'Offline') }}
                     </span>
                 </div>
             </div>
@@ -195,6 +195,8 @@
                                 <span class="bubble-status {{ $message->status }}">
                                     @if($message->status === 'read')
                                         <svg width="16" height="11" viewBox="0 0 16 11" fill="none"><path d="M1 5.5L5 9.5L15 1.5" stroke="#53BDEB" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/><path d="M11 1.5L7 6" stroke="#53BDEB" stroke-width="1.5" stroke-linecap="round"/></svg>
+                                    @elseif($message->status === 'delivered')
+                                        <svg width="16" height="11" viewBox="0 0 16 11" fill="none"><path d="M1 5.5L5 9.5L15 1.5" stroke="#8696A0" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/><path d="M11 1.5L7 6" stroke="#8696A0" stroke-width="1.5" stroke-linecap="round"/></svg>
                                     @else
                                         <svg width="16" height="11" viewBox="0 0 16 11" fill="none"><path d="M1 5.5L5 9.5L15 1.5" stroke="#8696A0" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
                                     @endif

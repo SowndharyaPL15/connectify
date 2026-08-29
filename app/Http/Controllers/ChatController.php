@@ -22,6 +22,11 @@ class ChatController extends Controller
     public function index()
     {
         $authUser  = Auth::user();
+        
+        // Update own status & mark sent messages as delivered
+        $authUser->update(['status' => 'online', 'last_seen' => now()]);
+        $this->markSentMessagesAsDelivered($authUser);
+
         $conversations = $this->getConversationsList($authUser);
         $currentContact = null;
 
@@ -60,6 +65,10 @@ class ChatController extends Controller
         if (!$conversation->users->contains($authUser->id)) {
             abort(403, 'You are not a participant of this conversation.');
         }
+
+        // Update own status & mark sent messages as delivered
+        $authUser->update(['status' => 'online', 'last_seen' => now()]);
+        $this->markSentMessagesAsDelivered($authUser);
 
         $conversations = $this->getConversationsList($authUser);
 
@@ -148,13 +157,21 @@ class ChatController extends Controller
 
         $body = $request->body ? $this->autoCorrect($request->body) : null;
 
+        $status = 'sent';
+        if (!$conversation->is_group) {
+            $otherUser = $conversation->users->where('id', '!=', $authUser->id)->first();
+            if ($otherUser && $otherUser->fresh()->status === 'online') {
+                $status = 'delivered';
+            }
+        }
+
         $message = Message::create([
             'conversation_id' => $request->conversation_id,
             'sender_id'       => $authUser->id,
             'body'            => $body,
             'image_path'      => $imagePath,
             'type'            => $type,
-            'status'          => 'sent',
+            'status'          => $status,
             'reply_to_id'     => $request->reply_to_id,
         ]);
 
@@ -319,13 +336,21 @@ class ChatController extends Controller
             return response()->json(['error' => 'You are not part of that conversation.'], 403);
         }
 
+        $status = 'sent';
+        if (!$targetConv->is_group) {
+            $otherUser = $targetConv->users->where('id', '!=', $authUser->id)->first();
+            if ($otherUser && $otherUser->fresh()->status === 'online') {
+                $status = 'delivered';
+            }
+        }
+
         $newMessage = Message::create([
             'conversation_id'   => $request->conversation_id,
             'sender_id'         => $authUser->id,
             'body'              => $message->body,
             'image_path'        => $message->image_path,
             'type'              => $message->type,
-            'status'            => 'sent',
+            'status'            => $status,
             'forwarded_from_id' => $message->id,
         ]);
 
@@ -432,21 +457,24 @@ class ChatController extends Controller
             ->where('status', '!=', 'read')
             ->update(['status' => 'read']);
 
-        // --- Fetch Reactions for recent messages ---
-        // To sync reactions in real-time without massive overhead, 
-        // we'll return reactions for the last 50 messages of this conversation.
+        // --- Fetch Reactions and Statuses for recent messages ---
+        // To sync reactions and ticks in real-time without massive overhead, 
+        // we'll return reactions and statuses for the last 50 messages of this conversation.
         $recentMessages = $conversation->messages()
             ->orderBy('id', 'desc')
             ->limit(50)
             ->get();
         
         $reactionsMap = [];
+        $statusesMap = [];
         foreach ($recentMessages as $rm) {
             $reactionsMap[$rm->id] = $this->getMessageReactionsSummary($rm, $authUser->id);
+            $statusesMap[$rm->id] = $rm->status;
         }
 
-        // Update own online status
+        // Update own online status & mark sent messages as delivered
         $authUser->update(['status' => 'online', 'last_seen' => now()]);
+        $this->markSentMessagesAsDelivered($authUser);
 
         // --- Typing Status ---
         $typingUsers = [];
@@ -476,6 +504,7 @@ class ChatController extends Controller
             'messages'    => $messages->map(fn($m) => $this->formatMessage($m, $authUser->id)),
             'chat_status' => $chatStatus,
             'reactions'   => $reactionsMap,
+            'statuses'    => $statusesMap,
         ]);
     }
 
@@ -745,5 +774,14 @@ class ChatController extends Controller
                 'name' => $message->sender->name,
             ],
         ];
+    }
+
+    private function markSentMessagesAsDelivered($authUser)
+    {
+        $conversationIds = $authUser->conversations()->pluck('conversations.id');
+        Message::whereIn('conversation_id', $conversationIds)
+            ->where('sender_id', '!=', $authUser->id)
+            ->where('status', 'sent')
+            ->update(['status' => 'delivered']);
     }
 }

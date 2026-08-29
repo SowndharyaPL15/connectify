@@ -14,10 +14,33 @@
 
     // ── Polling ────────────────────────────────────────────────────────────
     let pollTimer = null;
+    let updateMessageReactions = null;
+
+    function updateMessageStatus(msgId, status) {
+        const msgWrap = document.querySelector(`.message-wrap[data-id="${msgId}"]`);
+        if (!msgWrap) return;
+        const statusSpan = msgWrap.querySelector('.bubble-status');
+        if (!statusSpan) return;
+
+        if (!statusSpan.classList.contains(status)) {
+            statusSpan.classList.remove('sent', 'delivered', 'read');
+            statusSpan.classList.add(status);
+            
+            let statusSvg = '';
+            if (status === 'read') {
+                statusSvg = `<svg width="16" height="11" viewBox="0 0 16 11" fill="none"><path d="M1 5.5L5 9.5L15 1.5" stroke="#53BDEB" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/><path d="M11 1.5L7 6" stroke="#53BDEB" stroke-width="1.5" stroke-linecap="round"/></svg>`;
+            } else if (status === 'delivered') {
+                statusSvg = `<svg width="16" height="11" viewBox="0 0 16 11" fill="none"><path d="M1 5.5L5 9.5L15 1.5" stroke="#8696A0" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/><path d="M11 1.5L7 6" stroke="#8696A0" stroke-width="1.5" stroke-linecap="round"/></svg>`;
+            } else {
+                statusSvg = `<svg width="16" height="11" viewBox="0 0 16 11" fill="none"><path d="M1 5.5L5 9.5L15 1.5" stroke="#8696A0" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
+            }
+            statusSpan.innerHTML = statusSvg;
+        }
+    }
 
     function startPolling() {
         if (!CHAT) return;
-        pollTimer = setInterval(poll, 2500);
+        pollTimer = setInterval(poll, 1000); // Poll every 1s for instant message updates without delay
 
         // --- Typing Signal ---
         let lastTypingTime = 0;
@@ -63,9 +86,15 @@
                 chatStatusEl.textContent = data.chat_status;
             }
 
-            if (data.reactions) {
+            if (data.reactions && typeof updateMessageReactions === 'function') {
                 for (const [msgId, reactions] of Object.entries(data.reactions)) {
                     updateMessageReactions(msgId, reactions);
+                }
+            }
+
+            if (data.statuses) {
+                for (const [msgId, status] of Object.entries(data.statuses)) {
+                    updateMessageStatus(msgId, status);
                 }
             }
         } catch (err) {}
@@ -112,7 +141,9 @@
         const statusSvg = msg.is_mine
             ? (msg.status === 'read'
                 ? `<svg width="16" height="11" viewBox="0 0 16 11" fill="none"><path d="M1 5.5L5 9.5L15 1.5" stroke="#53BDEB" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/><path d="M11 1.5L7 6" stroke="#53BDEB" stroke-width="1.5" stroke-linecap="round"/></svg>`
-                : `<svg width="16" height="11" viewBox="0 0 16 11" fill="none"><path d="M1 5.5L5 9.5L15 1.5" stroke="#8696A0" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>`)
+                : (msg.status === 'delivered'
+                    ? `<svg width="16" height="11" viewBox="0 0 16 11" fill="none"><path d="M1 5.5L5 9.5L15 1.5" stroke="#8696A0" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/><path d="M11 1.5L7 6" stroke="#8696A0" stroke-width="1.5" stroke-linecap="round"/></svg>`
+                    : `<svg width="16" height="11" viewBox="0 0 16 11" fill="none"><path d="M1 5.5L5 9.5L15 1.5" stroke="#8696A0" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>`))
             : '';
 
         const imageHtml = (msg.type === 'image' && msg.image_url)
@@ -1462,7 +1493,7 @@
             };
         }
 
-        function updateMessageReactions(msgId, reactions) {
+        updateMessageReactions = function (msgId, reactions) {
             const msgWrap = document.querySelector(`.message-wrap[data-id="${msgId}"]`);
             if (!msgWrap) return;
 
